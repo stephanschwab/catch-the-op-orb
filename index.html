@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Optimism Mini‑Game — Catch the OP Orb</title>
+  <style>
+    :root { --op:#ff0420; }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;padding:24px;
+      font-family:-apple-system,system-ui,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial,sans-serif;
+      background:#f7f7fb;color:#111;text-align:center;
+    }
+    header{ max-width:760px;margin:0 auto 16px; }
+    h1{ margin:0 0 6px; color:var(--op); font-size:28px; }
+    p.subtitle{ margin:0; opacity:.85; }
+    #shell{
+      max-width:380px;margin:22px auto;background:#fff;border:3px solid var(--op);border-radius:14px;
+      padding:14px 14px 20px; box-shadow:0 10px 20px rgba(0,0,0,.06);
+    }
+    #hud{ display:flex;justify-content:space-between;gap:10px;margin:4px 0 12px;font-weight:700; }
+    #canvas-wrap{ display:flex;justify-content:center; }
+    canvas{ background:#fff;border:2px dashed var(--op);border-radius:12px;display:block; }
+    #controls{ margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap; }
+    button{
+      padding:10px 14px;font-size:15px;border:none;border-radius:9px;cursor:pointer;
+      transition:transform .06s ease, opacity .2s;
+    }
+    button:active{ transform:translateY(1px); }
+    .primary{ background:var(--op);color:#fff; }
+    .ghost{ background:#fff;color:var(--op);border:2px solid var(--op); }
+    .muted{ opacity:.7; }
+    footer{ margin:22px auto 0;opacity:.85;font-size:13px; }
+    a{ color:var(--op); text-decoration:none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Optimism Mini‑Game — Catch the OP Orb</h1>
+    <p class="subtitle">Click the moving OP‑orb to score points. You have <strong>30 seconds</strong>. Good luck!</p>
+  </header>
+
+  <section id="shell">
+    <div id="hud">
+      <div>⏱ Time: <span id="time">30</span>s</div>
+      <div>⭐ Score: <span id="score">0</span></div>
+      <div>🔥 Best: <span id="best">0</span></div>
+    </div>
+    <div id="canvas-wrap">
+      <canvas id="game" width="320" height="320" aria-label="Game canvas"></canvas>
+    </div>
+    <div id="controls">
+      <button id="start" class="primary">Start</button>
+      <button id="explore" class="ghost" onclick="window.open('https://opensea.io/collection/optimism-meme-collection','_blank')">
+        Explore My Meme NFTs 🔗
+      </button>
+    </div>
+  </section>
+
+  <footer>
+    Built by <a href="https://x.com/stephan1516417" target="_blank">@stephan1516417</a> — Optimism Ecosystem Builder
+  </footer>
+
+  <script>
+    (()=>{
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+      const timeEl = document.getElementById('time');
+      const scoreEl = document.getElementById('score');
+      const bestEl = document.getElementById('best');
+      const startBtn = document.getElementById('start');
+
+      let running=false, timeLeft=30, score=0, best=0, raf=null, lastTick=0, timerId=null;
+      try { best = parseInt(localStorage.getItem('op_game_best')||'0',10)||0; } catch(e){ best=0; }
+      bestEl.textContent = best;
+
+      const orb = { x: 160, y: 160, r: 18, vx: 2.6, vy: 2.1 };
+      const sparkles = [];
+
+      function reset(){
+        running=false; timeLeft=30; score=0;
+        orb.x=160; orb.y=160; orb.vx=2.6; orb.vy=2.1;
+        updateHUD(); draw(); startBtn.disabled=false; startBtn.textContent='Start';
+        if(timerId){ clearInterval(timerId); timerId=null; }
+        if(raf) cancelAnimationFrame(raf);
+      }
+
+      function updateHUD(){ timeEl.textContent=timeLeft; scoreEl.textContent=score; bestEl.textContent=best; }
+
+      function drawBG(){
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.save(); ctx.strokeStyle='#eee';
+        for(let i=20;i<canvas.width;i+=20){ ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+        for(let j=20;j<canvas.height;j+=20){ ctx.beginPath(); ctx.moveTo(0,j); ctx.lineTo(canvas.width,j); ctx.stroke(); }
+        ctx.restore();
+      }
+
+      function drawOrb(){
+        // Outer glow
+        const grd = ctx.createRadialGradient(orb.x, orb.y, 4, orb.x, orb.y, 28);
+        grd.addColorStop(0, 'rgba(255,4,32,0.9)');
+        grd.addColorStop(1, 'rgba(255,4,32,0.05)');
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(orb.x, orb.y, 26, 0, Math.PI*2); ctx.fill();
+
+        // Core
+        ctx.fillStyle = '#ff0420';
+        ctx.beginPath(); ctx.arc(orb.x, orb.y, orb.r, 0, Math.PI*2); ctx.fill();
+
+        // OP shine
+        ctx.fillStyle = 'rgba(255,255,255,.9)';
+        ctx.beginPath(); ctx.arc(orb.x - orb.r/3, orb.y - orb.r/3, 4, 0, Math.PI*2); ctx.fill();
+      }
+
+      function addSparkles(x,y){
+        for(let i=0;i<10;i++){
+          sparkles.push({ x, y, vx: (Math.random()-0.5)*3.4, vy:(Math.random()-0.5)*3.4, life: 24 });
+        }
+      }
+
+      function drawSparkles(){
+        for(let i=sparkles.length-1;i>=0;i--){
+          const s = sparkles[i];
+          s.x += s.vx; s.y += s.vy; s.vy += 0.03; s.life--;
+          ctx.fillStyle = 'rgba(255,4,32,'+(s.life/24).toFixed(2)+')';
+          ctx.fillRect(s.x, s.y, 2, 2);
+          if(s.life<=0) sparkles.splice(i,1);
+        }
+      }
+
+      function tick(ts){
+        if(!lastTick) lastTick=ts;
+        const dt = Math.min(32, ts - lastTick) / 16.67; // normalize ~60fps
+        lastTick = ts;
+
+        // Move orb
+        orb.x += orb.vx * dt; orb.y += orb.vy * dt;
+        // Bounce
+        if(orb.x - orb.r < 0){ orb.x = orb.r; orb.vx *= -1; }
+        if(orb.x + orb.r > canvas.width){ orb.x = canvas.width - orb.r; orb.vx *= -1; }
+        if(orb.y - orb.r < 0){ orb.y = orb.r; orb.vy *= -1; }
+        if(orb.y + orb.r > canvas.height){ orb.y = canvas.height - orb.r; orb.vy *= -1; }
+
+        drawBG(); drawOrb(); drawSparkles();
+
+        if(running) raf = requestAnimationFrame(tick);
+      }
+
+      function start(){
+        if(running) return;
+        running=true; timeLeft=30; score=0; lastTick=0; sparkles.length=0;
+        updateHUD(); startBtn.disabled=true; startBtn.textContent='Good luck!';
+        raf = requestAnimationFrame(tick);
+        timerId = setInterval(()=>{
+          timeLeft--;
+          if(timeLeft<=0){
+            timeLeft=0; running=false; startBtn.disabled=false; startBtn.textContent='Restart';
+            if(raf) cancelAnimationFrame(raf);
+            if(timerId){ clearInterval(timerId); timerId=null; }
+            if(score>best){ best=score; try{ localStorage.setItem('op_game_best', String(best)); }catch(e){} }
+          }
+          updateHUD();
+        },1000);
+      }
+
+      canvas.addEventListener('click', (e)=>{
+        if(!running) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const dx = x - orb.x, dy = y - orb.y;
+        if((dx*dx + dy*dy) <= (orb.r*orb.r)){
+          score++; updateHUD();
+          addSparkles(orb.x, orb.y);
+          // speed up slightly
+          const boost = 0.15;
+          orb.vx += (orb.vx>0?boost:-boost);
+          orb.vy += (orb.vy>0?boost:-boost);
+          // random nudge
+          orb.vx += (Math.random()-0.5)*0.6;
+          orb.vy += (Math.random()-0.5)*0.6;
+        }
+      });
+
+      startBtn.addEventListener('click', start);
+
+      // Initial paint
+      reset();
+    })();
+  </script>
+</body>
+</html>
