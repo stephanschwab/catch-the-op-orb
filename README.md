@@ -19,7 +19,7 @@ Can you beat your best score?
 ---
 
 ## 🌍 Live Demo
-👉 [Play on GitHub Pages](https://your-username.github.io/optimism-game-classic/)  
+👉 [Play on GitHub Pages]( https://stephanschwab.github.io/catch-the-op-orb/)  
 *(enable Pages in repo settings after uploading)*
 
 ---
