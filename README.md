@@ -1,5 +1,6 @@
 # Optimism Mini-Game — Catch the OP Orb 🎮
 
+![Game screenshot](screenshot.png)
 
 A small interactive public good built for [Optimism](https://optimism.io).  
 Click the moving OP-orb to score points. You have **30 seconds**.  
