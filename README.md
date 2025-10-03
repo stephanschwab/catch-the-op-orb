@@ -1,5 +1,5 @@
 # Optimism Mini-Game — Catch the OP Orb 🎮
-📌 This project is part of the BuildForGood ecosystem — a multi-project public goods initiative for Optimism.  
+📌 **This project is part of the BuildForGood ecosystem — a multi-project public goods initiative for Optimism**.  
 
 ![Game screenshot](screenshot.png)
 
@@ -41,7 +41,7 @@ This game is part of my **RetroPGF public goods contribution**:
 [MIT License](LICENSE)
 
 ## 🌍 BuildForGood Ecosystem  
-This project is part of the BuildForGood Ecosystem for Optimism.  
+**This project is part of the BuildForGood Ecosystem for Optimism**.  
 
 📖 Books & Articles • 🕹 Games • 🖼 NFTs & Memes • 🌍 Onchain Artifacts • 🎥 Media  
 
